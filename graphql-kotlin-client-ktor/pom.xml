@@ -29,7 +29,6 @@
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
-            <version>2.8.5</version>
         </dependency>
         <dependency>
             <groupId>com.expediagroup</groupId>
@@ -79,14 +78,23 @@
                 <version>1.0-SNAPSHOT</version>
                 <executions>
                     <execution>
+                        <id>introspect-schema</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>introspect</goal>
+                        </goals>
+                        <configuration>
+                            <url>https://swapi.graph.cool/</url>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>generate-client</id>
                         <phase>generate-sources</phase>
                         <goals>
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <schema></schema>
-                            <src></src>
+                            <src>src/test/resources/query.graphql</src>
                             <package>com.expediagroup.example</package>
                         </configuration>
                     </execution>

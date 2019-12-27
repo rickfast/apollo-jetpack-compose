@@ -20,6 +20,7 @@ import java.net.URL
 class KtorGraphQLClient @KtorExperimentalAPI constructor(private val url: URL,
                                                          engine: HttpClientEngineFactory<*> = CIO) : GraphQLClient {
     private val gson: Gson = Gson()
+    private val typeCache = mutableMapOf<Class<*>, ParameterizedType>()
 
     private val client = HttpClient(engine) {}
 
@@ -34,15 +35,22 @@ class KtorGraphQLClient @KtorExperimentalAPI constructor(private val url: URL,
             accept(ContentType.Application.Json)
         }
 
-        return gson.fromJson(result, object : ParameterizedType {
-            override fun getRawType(): Type = GraphQLResult::class.java
+        return gson.fromJson(result, parameterizedType(resultType))
+    }
 
-            override fun getOwnerType(): Type? = null
+    private fun <T> parameterizedType(resultType: Class<T>): ParameterizedType {
+        return typeCache.computeIfAbsent(resultType) {
+            object : ParameterizedType {
+                override fun getRawType(): Type = GraphQLResult::class.java
 
-            override fun getActualTypeArguments(): Array<Type> = arrayOf(resultType)
-        })
+                override fun getOwnerType(): Type? = null
+
+                override fun getActualTypeArguments(): Array<Type> = arrayOf(resultType)
+            }
+        }
     }
 }
+
 data class Film(val id: String)
 data class AllFilms(val allFilms: List<Film>)
 

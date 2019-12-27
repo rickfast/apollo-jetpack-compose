@@ -4,7 +4,6 @@ import com.expediagroup.graphql.client.generator.generateClient
 import org.apache.maven.plugin.AbstractMojo
 import org.apache.maven.plugins.annotations.Mojo
 import org.apache.maven.plugins.annotations.Parameter
-import org.apache.maven.project.MavenProject
 import java.io.File
 
 @Mojo(name = "generate")
@@ -15,17 +14,13 @@ class GraphQLClientGenerationMojo : AbstractMojo() {
     @Parameter(name = "src", required = true)
     private lateinit var src: List<File>
 
-    @Parameter(name = "schema", required = true)
+    @Parameter(name = "schema", defaultValue = "\${project.build.directory}/schema.graphql")
     private lateinit var schema: File
 
-    @Parameter(name = "project", defaultValue = "\${project}")
-    private lateinit var project: MavenProject
-
-    @Parameter(name = "outDir")
-    private var outDir: File? = null
+    @Parameter(name = "outputDirectory", defaultValue = "\${project.build.directory}")
+    private lateinit var outputDirectory: File
 
     override fun execute() {
-        val outputDirectory = outDir ?: File(project.build.outputDirectory)
         val fileSpecs = generateClient(`package`, schema, *src.toTypedArray())
 
         fileSpecs.forEach {

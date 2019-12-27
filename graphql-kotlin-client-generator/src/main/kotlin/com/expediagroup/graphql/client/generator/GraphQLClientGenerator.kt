@@ -21,6 +21,7 @@ class GraphQLClientGenerator(private val `package`: String,
         query.getDefinitionsOfType(OperationDefinition::class.java).map { it.selectionSet }
 
         val fileSpec = FileSpec.builder(`package`, "${queryFile.nameWithoutExtension}.kt")
+        val objectBuilder = TypeSpec.objectBuilder(query.getDefinitionsOfType(OperationDefinition::class.java).first().name)
 
         query.getDefinitionsOfType(OperationDefinition::class.java).forEach {
             val className = it.selectionSet.updateType(root, overrideName = "${it.name}Result")
@@ -35,8 +36,10 @@ class GraphQLClientGenerator(private val `package`: String,
         fileSpec.addTypeAlias(TypeAliasSpec.builder("ID", STRING).build())
 
         topLevel.values.forEach {
-            fileSpec.addType(it.build())
+            objectBuilder.addType(it.build())
         }
+
+        fileSpec.addType(objectBuilder.build())
 
         return fileSpec.build()
     }
