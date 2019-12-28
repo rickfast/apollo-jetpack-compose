@@ -39,12 +39,17 @@ fun generate(`package`: String, graphQLSchema: TypeDefinitionRegistry, queryFile
         val funSpec = FunSpec.builder(it.name)
             .returns(ClassName(LIBRARY_PACKAGE, "GraphQLResult").parameterizedBy(className))
             .addModifiers(KModifier.SUSPEND)
-            .addStatement("return graphQLClient.executeOperation($queryConstName, mapOf<String, Any>(), mapOf<String, Any>(), %T::class.java)", className)
 
-        if (variableType != null) {
+
+        val variableCode = if (variableType != null) {
             funSpec.addParameter("variables", ClassName(context.`package`, "${context.enclosingTypeName}.Variables"))
             enclosingTypeSpec.addType(variableType)
+            "variables"
+        } else {
+            "mapOf<String, Any>()"
         }
+
+        funSpec.addStatement("return graphQLClient.executeOperation($queryConstName, $variableCode, mapOf<String, Any>(), %T::class.java)", className)
 
         functionSpecs += funSpec.build()
     }
@@ -94,6 +99,34 @@ private fun List<VariableDefinition>?.createVariableType(context: Context): Type
     return if (variableTypeSpec.propertySpecs.isEmpty()) null else variableTypeSpec.build()
 }
 
+private fun ObjectTypeDefinition.updateInputType(context: Context): TypeName {
+    val o = context.dataClasses.computeIfAbsent(this.name) {
+        TypeSpec.classBuilder(this.name)
+    }
+
+    this.fieldDefinitions.forEach { fieldDefinition ->
+        val kotlinFieldType = fieldDefinition.type.toTypeName(context)
+        val fieldName = fieldDefinition.name
+
+        o.modifiers.add(KModifier.DATA)
+        o.addProperty(
+            PropertySpec.builder(fieldName, kotlinFieldType)
+                .initializer(fieldName)
+                .build()
+        )
+    }
+
+    return ClassName(context.`package`, "${context.enclosingTypeName}.$name")
+}
+
+private fun NamedNode<*>.toCustom(context: Context): TypeName =
+    when (val type = context.graphQLSchema.getType(this.name).get()) {
+        is ObjectTypeDefinition -> type.updateInputType(context)
+        is EnumTypeDefinition -> updateEnum(context, type)
+        else -> throw RuntimeException()
+    }
+
+
 private fun Type<*>.toTypeName(context: Context): TypeName {
     val nullAgnostic = if (this is NonNullType) {
         this.type
@@ -104,12 +137,12 @@ private fun Type<*>.toTypeName(context: Context): TypeName {
 
     return when (nullAgnostic) {
         is NamedNode<*> -> when (nullAgnostic.name) {
-            "String" -> com.squareup.kotlinpoet.STRING
-            "Int" -> com.squareup.kotlinpoet.INT
-            "Float" -> com.squareup.kotlinpoet.FLOAT
-            "Boolean" -> com.squareup.kotlinpoet.BOOLEAN
-            "ID" -> com.squareup.kotlinpoet.ClassName(context.`package`, "ID")
-            else -> com.squareup.kotlinpoet.ClassName("${context.enclosingTypeName}.${nullAgnostic.name}")
+            "String" -> STRING
+            "Int" -> INT
+            "Float" -> FLOAT
+            "Boolean" -> BOOLEAN
+            "ID" -> ClassName(context.`package`, "ID")
+            else -> nullAgnostic.toCustom(context)
         }
             is ListType -> LIST.parameterizedBy(nullAgnostic.type.toTypeName(context))
         else -> throw java.lang.RuntimeException(this.toString())
@@ -127,7 +160,7 @@ private fun updateEnum(context: Context, enclosingEnumDef: EnumTypeDefinition): 
         o.addEnumConstant(it.name)
     }
 
-    return ClassName(context.`package`, enclosingEnumDef.name)
+    return ClassName(context.`package`, "${context.enclosingTypeName}.${enclosingEnumDef.name}")
 }
 
 private fun SelectionSet?.updateType(
