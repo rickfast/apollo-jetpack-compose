@@ -19,6 +19,11 @@ class GraphQLIntrospectionMojo : AbstractMojo() {
 
     override fun execute() {
         val schema = introspectSchema(url)
+
+        if (outputDirectory.exists().not()) {
+            outputDirectory.mkdir()
+        }
+
         val writer = FileWriter("${outputDirectory.absolutePath}/schema.graphql")
 
         writer.write(SchemaPrinter().print(schema))

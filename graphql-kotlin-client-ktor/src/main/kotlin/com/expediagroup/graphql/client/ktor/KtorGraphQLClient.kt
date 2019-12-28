@@ -6,7 +6,7 @@ import com.expediagroup.graphql.client.core.execute
 import com.google.gson.Gson
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory
-import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.apache.Apache
 import io.ktor.client.request.accept
 import io.ktor.client.request.post
 import io.ktor.http.ContentType
@@ -18,7 +18,8 @@ import java.lang.reflect.Type
 import java.net.URL
 
 class KtorGraphQLClient @KtorExperimentalAPI constructor(private val url: URL,
-                                                         engine: HttpClientEngineFactory<*> = CIO) : GraphQLClient {
+                                                         engine: HttpClientEngineFactory<*> = Apache
+) : GraphQLClient {
     private val gson: Gson = Gson()
     private val typeCache = mutableMapOf<Class<*>, ParameterizedType>()
 

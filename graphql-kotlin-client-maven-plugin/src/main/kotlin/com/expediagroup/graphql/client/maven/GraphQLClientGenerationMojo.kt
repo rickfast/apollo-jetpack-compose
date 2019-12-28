@@ -20,11 +20,13 @@ class GraphQLClientGenerationMojo : AbstractMojo() {
     @Parameter(name = "outputDirectory", defaultValue = "\${project.build.directory}")
     private lateinit var outputDirectory: File
 
-    override fun execute() {
+    override fun execute() = try {
         val fileSpecs = generateClient(`package`, schema, *src.toTypedArray())
 
         fileSpecs.forEach {
             it.writeTo(outputDirectory)
         }
+    } catch (e: Exception) {
+        e.printStackTrace()
     }
 }

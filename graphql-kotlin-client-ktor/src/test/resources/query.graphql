@@ -1,5 +1,8 @@
-query AllFilms {
-    allFilms {
-        buttnugget: id
+# Write your query or mutation here
+query AllStarWarsFilms($orderBy: FilmOrderBy) {
+    allFilms(orderBy:$orderBy){
+        id
+        title
+        director
     }
 }

@@ -6,9 +6,10 @@ import java.io.File
 
 fun generateClient(`package`: String, schema: File, vararg files: File): List<FileSpec> {
     val graphQLSchema = SchemaParser().parse(schema)
-    val generator = GraphQLClientGenerator(`package`, graphQLSchema)
 
-    return files.map(generator::generate)
+    return files.map {
+        generate(`package`, graphQLSchema, it)
+    }
 }
 
 //fun main(args: Array<String>) {
