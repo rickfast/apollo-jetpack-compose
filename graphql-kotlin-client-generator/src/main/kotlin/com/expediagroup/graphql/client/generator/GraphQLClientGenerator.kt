@@ -18,7 +18,21 @@ data class Context(
 )
 
 val parser: Parser = Parser()
+val upperCamelToLowerCamel: Converter<String, String> = CaseFormat.UPPER_CAMEL.converterTo(CaseFormat.LOWER_CAMEL)
 val upperCamelToUpperUnderscore: Converter<String, String> = CaseFormat.UPPER_CAMEL.converterTo(CaseFormat.UPPER_UNDERSCORE)
+
+fun String.toLowerCamel() = upperCamelToLowerCamel.convert(this)!!
+fun String.toUpperUnderscore() = upperCamelToUpperUnderscore.convert(this)!!
+fun TypeSpec.Builder.setCommentFromGraphQL(node: AbstractNode<*>): TypeSpec.Builder {
+    val graphQLComments = node.comments.joinToString("\n") { it.content }
+
+    if (graphQLComments.isNotEmpty()) {
+        addKdoc(graphQLComments)
+    }
+
+    return this
+}
+
 
 const val LIBRARY_PACKAGE = "com.expediagroup.graphql.client.core"
 
@@ -31,16 +45,14 @@ fun generate(`package`: String, graphQLSchema: TypeDefinitionRegistry, queryFile
     val name = queryDocument.getDefinitionsOfType(OperationDefinition::class.java).first().name
     val enclosingTypeSpec = TypeSpec.classBuilder(name)
     val context = Context(graphQLSchema, `package`, name)
-    val queryConstName = "${upperCamelToUpperUnderscore.convert(context.enclosingTypeName)}_QUERY"
+    val queryConstName = "${context.enclosingTypeName.toUpperUnderscore()}_QUERY"
 
     queryDocument.getDefinitionsOfType(OperationDefinition::class.java).forEach {
         val className = it.selectionSet.updateType(context, rootType, overrideName = "${it.name}Result")
         val variableType = it.variableDefinitions.createVariableType(context)
-        val funSpec = FunSpec.builder(it.name)
+        val funSpec = FunSpec.builder(it.name.toLowerCamel())
             .returns(ClassName(LIBRARY_PACKAGE, "GraphQLResult").parameterizedBy(className))
             .addModifiers(KModifier.SUSPEND)
-
-
         val variableCode = if (variableType != null) {
             funSpec.addParameter("variables", ClassName(context.`package`, "${context.enclosingTypeName}.Variables"))
             enclosingTypeSpec.addType(variableType)
@@ -89,6 +101,7 @@ private fun List<VariableDefinition>?.createVariableType(context: Context): Type
 
     this?.forEach { variableDef ->
         val kotlinType = variableDef.type.toTypeName(context)
+
         constructorSpec.addParameter(variableDef.name, kotlinType)
         variableTypeSpec.addProperty(PropertySpec.builder(variableDef.name, kotlinType)
             .initializer(variableDef.name).build())
@@ -103,6 +116,8 @@ private fun ObjectTypeDefinition.updateInputType(context: Context): TypeName {
     val o = context.dataClasses.computeIfAbsent(this.name) {
         TypeSpec.classBuilder(this.name)
     }
+
+    o.setCommentFromGraphQL(this)
 
     this.fieldDefinitions.forEach { fieldDefinition ->
         val kotlinFieldType = fieldDefinition.type.toTypeName(context)
@@ -155,6 +170,7 @@ private fun updateEnum(context: Context, enclosingEnumDef: EnumTypeDefinition): 
     }
 
     o.addEnumConstant("_UNKNOWN_VALUE")
+    o.setCommentFromGraphQL(enclosingEnumDef)
 
     enclosingEnumDef.enumValueDefinitions.forEach {
         o.addEnumConstant(it.name)

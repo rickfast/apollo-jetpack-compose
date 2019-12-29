@@ -44,12 +44,22 @@
             <dependency>
                 <groupId>io.ktor</groupId>
                 <artifactId>ktor-client-core-jvm</artifactId>
-                <version>1.2.0</version>
+                <version>1.2.6</version>
+            </dependency>
+            <dependency>
+                <groupId>io.ktor</groupId>
+                <artifactId>ktor-client-json-jvm</artifactId>
+                <version>1.2.6</version>
+            </dependency>
+            <dependency>
+                <groupId>io.ktor</groupId>
+                <artifactId>ktor-client-gson</artifactId>
+                <version>1.2.6</version>
             </dependency>
             <dependency>
                 <groupId>io.ktor</groupId>
                 <artifactId>ktor-client-apache</artifactId>
-                <version>1.2.0</version>
+                <version>1.2.6</version>
             </dependency>
             <dependency>
                 <groupId>com.google.code.gson</groupId>

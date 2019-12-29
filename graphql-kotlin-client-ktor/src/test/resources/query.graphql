@@ -1,8 +1,14 @@
 # Write your query or mutation here
 query AllStarWarsFilms($orderBy: FilmOrderBy) {
     allFilms(orderBy:$orderBy){
-        aliasForId: id
+        id
         title
         director
+        characters {
+            name
+            homeworld{
+                name
+            }
+        }
     }
 }
