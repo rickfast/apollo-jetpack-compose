@@ -14,8 +14,13 @@ data class Context(
     val graphQLSchema: TypeDefinitionRegistry,
     val `package`: String,
     val enclosingTypeName: String,
+    val queryDocument: Document,
     val dataClasses: MutableMap<String, TypeSpec.Builder> = mutableMapOf()
 )
+
+interface TypeGeneratorHooks {
+    fun willBuildFileSpec(query: Document, builder: FileSpec.Builder) {}
+}
 
 val parser: Parser = Parser()
 val upperCamelToLowerCamel: Converter<String, String> = CaseFormat.UPPER_CAMEL.converterTo(CaseFormat.LOWER_CAMEL)
@@ -44,7 +49,7 @@ fun generate(`package`: String, graphQLSchema: TypeDefinitionRegistry, queryFile
     val fileSpec = FileSpec.builder(`package`, queryFile.nameWithoutExtension)
     val name = queryDocument.getDefinitionsOfType(OperationDefinition::class.java).first().name
     val enclosingTypeSpec = TypeSpec.classBuilder(name)
-    val context = Context(graphQLSchema, `package`, name)
+    val context = Context(graphQLSchema, `package`, name, queryDocument)
     val queryConstName = "${context.enclosingTypeName.toUpperUnderscore()}_QUERY"
 
     queryDocument.getDefinitionsOfType(OperationDefinition::class.java).forEach {
@@ -185,7 +190,6 @@ private fun SelectionSet?.updateType(
     overrideName: String? = null
 ): ClassName {
     val name = overrideName ?: enclosingTypeDef.name
-    println("Processing enclosing type: $name")
     val o = context.dataClasses.computeIfAbsent(name) {
         TypeSpec.classBuilder(name)
     }
@@ -200,6 +204,13 @@ private fun SelectionSet?.updateType(
                 .initializer(fieldName)
                 .build()
         )
+    }
+
+    this?.getSelectionsOfType(FragmentSpread::class.java)?.forEach { fragmentSpread ->
+        val fragmentDefinitions = context.queryDocument.getDefinitionsOfType(FragmentDefinition::class.java)
+        val fragmentDefinition = fragmentDefinitions.find { it.name == fragmentSpread.name }
+
+        fragmentDefinition?.selectionSet.updateType(context, enclosingTypeDef)
     }
 
     return ClassName(context.`package`, "${context.enclosingTypeName}.$name")

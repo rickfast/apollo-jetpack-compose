@@ -12,7 +12,6 @@ import io.ktor.client.features.json.JsonSerializer
 import io.ktor.client.request.accept
 import io.ktor.client.request.post
 import io.ktor.http.ContentType
-import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
 import io.ktor.http.contentType
 import io.ktor.util.KtorExperimentalAPI
@@ -27,19 +26,15 @@ class KtorGraphQLClient @KtorExperimentalAPI constructor(private val url: URL,
 ) : GraphQLClient {
     private val gson: Gson = Gson()
     private val typeCache = mutableMapOf<Class<*>, ParameterizedType>()
+    private val jsonSerializer = object : JsonSerializer {
+        override fun read(type: TypeInfo, body: Input) = body.readText()
+        override fun write(data: Any, contentType: ContentType) =
+            TextContent(gson.toJson(data), contentType)
+    }
 
     private val client = HttpClient(engine) {
         install(JsonFeature) {
-            serializer = object : JsonSerializer {
-                override fun read(type: TypeInfo, body: Input): Any {
-                    return body.readText()
-                }
-
-                override fun write(data: Any, contentType: ContentType): OutgoingContent {
-                    return TextContent(gson.toJson(data), contentType)
-                }
-
-            }
+            serializer = jsonSerializer
         }
     }
 

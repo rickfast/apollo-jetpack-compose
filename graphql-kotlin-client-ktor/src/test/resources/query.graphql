@@ -1,14 +1,19 @@
 # Write your query or mutation here
-query AllStarWarsFilms($orderBy: FilmOrderBy) {
+query AllStarWarsFilms($orderBy: FilmOrderBy = createdAt_ASC) {
     allFilms(orderBy:$orderBy){
         id
         title
         director
         characters {
-            name
-            homeworld{
-                name
-            }
+            ...characterName
         }
+    }
+}
+
+fragment characterName on Person {
+    name
+    eyeColor
+    homeworld {
+        name
     }
 }
