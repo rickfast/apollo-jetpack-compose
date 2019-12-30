@@ -41,6 +41,40 @@ fun TypeSpec.Builder.setCommentFromGraphQL(node: AbstractNode<*>): TypeSpec.Buil
 
 const val LIBRARY_PACKAGE = "com.expediagroup.graphql.client.core"
 
+fun Document.attachTypeName(context: Context): Document {
+    val copy = this.deepCopy()
+
+    copy.getDefinitionsOfType(OperationDefinition::class.java).forEach {
+        it.selectionSet?.attachTypeName(context)
+    }
+
+    return copy
+}
+
+fun SelectionSet.attachTypeName(context: Context) {
+    if (this.selections.isNullOrEmpty()) {
+        return
+    }
+
+    val field = SelectionSet::class.java.getDeclaredField("selections")
+
+    field.isAccessible = true
+
+    val selections = (field.get(this)) as MutableList<Selection<*>>
+
+    selections.add(0, Field("__typeName"))
+
+    this.getSelectionsOfType(Field::class.java).forEach {
+        it.selectionSet?.attachTypeName(context)
+    }
+
+    this.getSelectionsOfType(FragmentSpread::class.java).forEach {
+        val fragmentDefinition = context.queryDocument.getDefinitionsOfType(FragmentDefinition::class.java).find { fragment -> fragment.name == it.name }
+
+        fragmentDefinition?.selectionSet?.attachTypeName(context)
+    }
+}
+
 fun generate(`package`: String, graphQLSchema: TypeDefinitionRegistry, queryFile: File): FileSpec {
     val functionSpecs = mutableListOf<FunSpec>()
     val rootType = graphQLSchema.getType("Query").get() as ObjectTypeDefinition
@@ -50,6 +84,8 @@ fun generate(`package`: String, graphQLSchema: TypeDefinitionRegistry, queryFile
     val name = queryDocument.getDefinitionsOfType(OperationDefinition::class.java).first().name
     val enclosingTypeSpec = TypeSpec.classBuilder(name)
     val context = Context(graphQLSchema, `package`, name, queryDocument)
+    val modifiedQuery = queryDocument.attachTypeName(context)
+    val modifiedQuerySdl = AstPrinter.printAst(modifiedQuery)
     val queryConstName = "${context.enclosingTypeName.toUpperUnderscore()}_QUERY"
 
     queryDocument.getDefinitionsOfType(OperationDefinition::class.java).forEach {
@@ -93,7 +129,7 @@ fun generate(`package`: String, graphQLSchema: TypeDefinitionRegistry, queryFile
 
     fileSpec.addProperty(PropertySpec.builder(queryConstName, STRING)
         .addModifiers(KModifier.CONST)
-        .initializer("%S", queryString).build())
+        .initializer("%S", modifiedQuerySdl).build())
     fileSpec.addType(enclosingTypeSpec.build())
 
     return fileSpec.build()
@@ -194,7 +230,8 @@ private fun SelectionSet?.updateType(
         TypeSpec.classBuilder(name)
     }
 
-    this?.getSelectionsOfType(Field::class.java)?.forEach { fieldSelection ->
+    this?.getSelectionsOfType(Field::class.java)?.filterNot { it.name == "__typeName" }
+        ?.forEach { fieldSelection ->
         val (correspondingFieldDef, nullable, kotlinFieldType) = getFieldData(context, enclosingTypeDef, fieldSelection)
         val fieldName = fieldSelection.alias ?: correspondingFieldDef.name
 

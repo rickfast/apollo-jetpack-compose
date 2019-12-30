@@ -12,6 +12,7 @@
         <module>graphql-kotlin-client-generator</module>
         <module>graphql-kotlin-client-core</module>
         <module>graphql-kotlin-client-maven-plugin</module>
+        <module>graphql-kotlin-client-jetpack-compose</module>
     </modules>
     <packaging>pom</packaging>
 
